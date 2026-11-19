@@ -40,7 +40,7 @@ All settings are environment variables (`.env.example` lists them; `.env` is git
 | `COURIER_S2S_TOKEN` | | local | static Bearer token for a local courier started with `ENV=local` |
 | `TELEGRAM_CHAT_ID` | | all | chat that receives the messages |
 | `NOTIFY_LOCALE` | `vi` | all | template language, `vi` or `en` |
-| `DELAY` | `0s` | jobs | random sleep up to this value before the run, so the check-in time varies |
+| `DELAY` | `0s` | bvchain | random sleep up to this value before the run, so the check-in time varies |
 | `NOTIFICATION_SUCCESS_ENABLED` | `false` | bvchain | message after each check-in/check-out |
 | `REPORT_ALWAYS_SEND` | `false` | bvreport | send even when no day is missing |
 | `LOG_LEVEL`, `LOG_ENCODING`, `SERVICE_NAME`, `ENV` | `info`, `console`, binary name, `dev` | all | `LOG_ENCODING=json` in the cluster, `LOG_LEVEL=debug` logs every calendar day |

@@ -34,6 +34,7 @@ type Courier struct {
 	client courierv1.CourierServiceClient
 	chatID string
 	locale string
+	log    *zap.Logger
 }
 
 // New wraps a courier client. chatID is the Telegram chat, locale the template language.
@@ -64,12 +65,14 @@ func Dial(ctx context.Context, cfg appconfig.Courier, log *zap.Logger) (*Courier
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial courier: %w", err)
 	}
-	return New(courierv1.NewCourierServiceClient(conn), cfg.ChatID, cfg.Locale), conn.Close, nil
+	c := New(courierv1.NewCourierServiceClient(conn), cfg.ChatID, cfg.Locale)
+	c.log = log
+	return c, conn.Close, nil
 }
 
 // Send implements Sender.
 func (c *Courier) Send(ctx context.Context, templateID, key string, data map[string]string) error {
-	_, err := c.client.SendNotification(ctx, &courierv1.SendNotificationRequest{
+	resp, err := c.client.SendNotification(ctx, &courierv1.SendNotificationRequest{
 		IdempotencyKey: key,
 		Locale:         c.locale,
 		TemplateId:     templateID,
@@ -81,6 +84,11 @@ func (c *Courier) Send(ctx context.Context, templateID, key string, data map[str
 	})
 	if err != nil {
 		return fmt.Errorf("courier %s: %w", templateID, err)
+	}
+	// queued == 0 means courier accepted the request but queued nothing (duplicate idempotency key)
+	if c.log != nil {
+		c.log.Info("notification accepted by courier", zap.String("template", templateID),
+			zap.String("notification_id", resp.GetNotificationId()), zap.Int32("queued", resp.GetQueued()))
 	}
 	return nil
 }
