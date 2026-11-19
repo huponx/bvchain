@@ -1,0 +1,12 @@
+apiVersion: v2
+name: bvchain
+description: bvchain CronJob (BV check-in and check-out), deployed with the go-job chart.
+type: application
+# Replaced at release time (update-chart-metadata): version and appVersion carry the release version.
+version: 0.0.0
+appVersion: "0.0.0"
+dependencies:
+  - name: go-job
+    version: 1.1.0
+    repository: oci://ghcr.io/huponx/charts
+    alias: bv-job

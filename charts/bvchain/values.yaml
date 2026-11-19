@@ -1,0 +1,51 @@
+# Values of the go-job chart live under `bv-job:` (alias of the dependency).
+# image.tag is written at release time (update-deployment-values); the default only keeps `helm template` working.
+#
+# bvchain checks in and out on the BV portal and talks to courier (Telegram) with its ServiceAccount token.
+# Helm replaces lists: the Application in mm-deploy repeats the whole env list and secrets list.
+bv-job:
+  cronjob:
+    enabled: true
+    # a run that is still going when the next one starts is replaced
+    concurrencyPolicy: Replace
+    failedJobsHistoryLimit: 3
+    successfulJobsHistoryLimit: 3
+    schedule: "*/30 8-18 * * 1-5"
+    timeZone: Asia/Ho_Chi_Minh
+  job:
+    # created by this chart (templates/serviceaccount.yaml); courier must allow it
+    serviceAccountName: bvchain
+    # the image runs as the distroless nonroot user
+    podSecurityContext:
+      runAsUser: 65532
+      runAsNonRoot: true
+    container:
+      image:
+        repository: huponx/bvchain
+        tag: "0.0.0"
+      env:
+        - name: LOG_ENCODING
+          value: json
+        - name: SERVICE_NAME
+          value: bvchain
+        - name: DELAY
+          value: 3m
+        - name: COURIER_TARGET
+          value: courier.application.svc.cluster.local:9090
+        - name: COURIER_TOKEN_FILE
+          value: /var/run/secrets/courier/token
+      volumeMounts:
+        - name: courier-token
+          mountPath: /var/run/secrets/courier
+          readOnly: true
+    # projected ServiceAccount token for courier (audience courier), rotated by the kubelet
+    volumes:
+      - name: courier-token
+        projected:
+          sources:
+            - serviceAccountToken:
+                audience: courier
+                expirationSeconds: 3600
+                path: token
+  # Secret values stay out of git: reference existing Secrets (mm-deploy overrides this list).
+  secrets: []

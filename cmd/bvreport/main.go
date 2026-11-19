@@ -1,0 +1,54 @@
+// Command bvreport is the working-days report job: it logs in to the BV portal, counts the
+// working days of the current period and sends the report to Telegram. It runs as a
+// Kubernetes CronJob.
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/huponx/bvchain/internal/appconfig"
+	"github.com/huponx/bvchain/internal/notify"
+	"github.com/huponx/bvchain/internal/report"
+	"github.com/huponx/gocommon/config"
+	"github.com/huponx/gocommon/logging"
+	"github.com/huponx/gocommon/worker"
+	"go.uber.org/zap"
+)
+
+func main() {
+	cfg, err := config.Load[appconfig.Report]()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "invalid config:", err)
+		os.Exit(1)
+	}
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintln(os.Stderr, "invalid config:", err)
+		os.Exit(1)
+	}
+	logCfg := appconfig.WithService(cfg.Log, "bvreport")
+	log, err := logging.New(logging.Config{Level: logCfg.Level, Encoding: logCfg.Encoding, Service: logCfg.Service, Env: logCfg.Env})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "logger:", err)
+		os.Exit(1)
+	}
+	defer logging.Sync(log)
+
+	ctx, stop := worker.Signals()
+	defer stop()
+
+	sender, closeConn, err := notify.Dial(ctx, cfg.Courier, log)
+	if err != nil {
+		log.Error("courier", zap.Error(err))
+		logging.Sync(log)
+		os.Exit(1)
+	}
+	defer func() { _ = closeConn() }()
+
+	if err := report.NewJob(cfg, log, sender).Run(ctx); err != nil {
+		log.Error("job failed", zap.Error(err))
+		logging.Sync(log)
+		os.Exit(1)
+	}
+	log.Info("job completed successfully")
+}
