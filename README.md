@@ -57,6 +57,8 @@ For the period 21st to 20th (UTC+7) the report counts working days from the cale
 
 The previous implementation counted every item that was not a weekend, so rows returned twice or outside the period, holidays and leave days inflated the count (24 instead of 22 for 21/09 to 20/10). The log line `working days summary` prints the raw item count, duplicates, out-of-period dates, weekends, holidays, leave days and the old count (`legacy_total_in_period`) next to the new totals, so a difference can be traced to its cause. A warning is also logged when `is_weekend` disagrees with the weekday of the date (the API flag is used).
 
+The line also carries a check that ignores the API flags: `period_dates` (30 for 21/09 to 20/10) and `weekdays_in_period` (the Monday to Friday dates, 22 for that period). `total_in_period` should equal `weekdays_in_period` minus the holidays and leave on those days. Two warnings name a difference: `the API did not return every date of the period` (lists `missing_dates`) and `working days differ from the Monday-Friday dates of the period` (a wrong `is_weekend` flag). To find the cause for a past period, run `bvctl report -month 10/2026 -dry-run -verbose` (see [Run bvctl in the cluster](#run-bvctl-in-the-cluster-kubectl)) and read the `WARN` lines and the per-day table.
+
 ## bvctl
 
 `bvctl` runs from a laptop. It sends through courier, so it needs the same environment as the jobs (copy `.env.example` to `.env`, fill it and load it: `set -a; source .env; set +a`; `make` does not read `.env`).
