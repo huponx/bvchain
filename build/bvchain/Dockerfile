@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags "-s -w" -o /out/bvchain ./cmd/bvchain
 
 # static + CA certificates (the BV portal is HTTPS), runs as non-root
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="bvchain" \
