@@ -1,0 +1,27 @@
+# Used by `helm template` / `helm lint` (ct, README): every optional value set.
+bv-job:
+  cronjob:
+    schedule: "*/30 8-18 * * 1-5"
+  job:
+    container:
+      image:
+        tag: "v2026.10.1-release-abc1234"
+      env:
+        - name: BV_USERNAME
+          value: hung.pham
+        - name: DELAY
+          value: 3m
+        - name: COURIER_TARGET
+          value: courier.application.svc.cluster.local:9090
+        - name: COURIER_TOKEN_FILE
+          value: /var/run/secrets/courier/token
+  secrets:
+    - name: BV_PASSWORD
+      secretName: job-bv-credentials
+      key: bv-password
+    - name: BV_OTP_SECRET
+      secretName: job-bv-credentials
+      key: bv-otp-secret
+    - name: TELEGRAM_CHAT_ID
+      secretName: telegram-hung.phamqk-chat
+      key: chat-id
