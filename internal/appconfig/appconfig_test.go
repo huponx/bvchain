@@ -40,3 +40,22 @@ func TestValidateListsWhatIsMissing(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestReportDedupe(t *testing.T) {
+	ok := Report{
+		BV:      BV{Username: "u", Password: "p", OTPSecret: "JBSWY3DPEHPK3PXP"},
+		Courier: Courier{Target: "courier:9090", ChatID: "1", Locale: "vi", Timeout: time.Second},
+	}
+	for _, mode := range []string{"daily", "hourly", "none"} {
+		c := ok
+		c.Dedupe = mode
+		if err := c.Validate(); err != nil {
+			t.Fatalf("%s: %v", mode, err)
+		}
+	}
+	c := ok
+	c.Dedupe = "weekly"
+	if err := c.Validate(); err == nil {
+		t.Fatal("weekly must be rejected")
+	}
+}

@@ -17,6 +17,13 @@ func TestPeriods(t *testing.T) {
 		{"the 21st", at(2025, time.October, 21, 0), "2025-10-21", "2025-11-20"},
 		{"december rolls the year", at(2025, time.December, 25, 9), "2025-12-21", "2026-01-20"},
 		{"january", at(2026, time.January, 3, 9), "2025-12-21", "2026-01-20"},
+		// The old implementation used now.AddDate(0, 1, 0): on the 29th to 31st the next month
+		// overflowed (31/10 + 1 month = 1/12) and the period ended in December.
+		{"31st of a 31-day month", at(2026, time.October, 31, 9), "2026-10-21", "2026-11-20"},
+		{"31st of august", at(2026, time.August, 31, 9), "2026-08-21", "2026-09-20"},
+		{"31st of january", at(2026, time.January, 31, 9), "2026-01-21", "2026-02-20"},
+		{"30th of january", at(2026, time.January, 30, 9), "2026-01-21", "2026-02-20"},
+		{"29th of january", at(2027, time.January, 29, 9), "2027-01-21", "2027-02-20"},
 	}
 	for _, c := range cases {
 		p := PeriodAt(c.now)
