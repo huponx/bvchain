@@ -65,6 +65,14 @@ type Summary struct {
 	DaysWithCICO  float64
 	MissingDays   float64
 
+	// Cross-check, independent of the API flags: the calendar dates of the period, its Monday to
+	// Friday dates, and the dates of the period the API did not return. A TotalInPeriod that
+	// differs from WeekdaysInPeriod minus holidays and leave points at a wrong is_weekend flag
+	// or at missing dates.
+	PeriodDates      int
+	WeekdaysInPeriod int
+	MissingDates     []string
+
 	Days []Day // one entry per distinct date of the period, ordered by date
 }
 
@@ -162,6 +170,7 @@ func Summarize(items []calendar.Item, period calendar.DateRange, now time.Time, 
 		logDay(log, d)
 	}
 	s.MissingDays = s.TotalToToday - s.DaysWithCICO
+	s.crossCheck(period, first, log)
 
 	log.Info("working days summary",
 		zap.String("period", from+".."+to),
@@ -174,6 +183,8 @@ func Summarize(items []calendar.Item, period calendar.DateRange, now time.Time, 
 		zap.Int("holiday", s.Holiday),
 		zap.Int("full_leave", s.FullLeave),
 		zap.Int("half_leave", s.HalfLeave),
+		zap.Int("period_dates", s.PeriodDates),
+		zap.Int("weekdays_in_period", s.WeekdaysInPeriod),
 		zap.Int("legacy_total_in_period", s.LegacyTotalInPeriod),
 		zap.Float64("total_in_period", s.TotalInPeriod),
 		zap.Float64("total_to_today", s.TotalToToday),
@@ -181,6 +192,37 @@ func Summarize(items []calendar.Item, period calendar.DateRange, now time.Time, 
 		zap.Float64("missing_days", s.MissingDays),
 	)
 	return s
+}
+
+// crossCheck counts the dates of the period without looking at the API flags and lists the dates
+// the API did not return.
+func (s *Summary) crossCheck(period calendar.DateRange, returned map[string]calendar.Item, log *zap.Logger) {
+	from := period.From()
+	to := period.To()
+	for d := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, calendar.VietnamLoc); !d.After(to); d = d.AddDate(0, 0, 1) {
+		s.PeriodDates++
+		if wd := d.Weekday(); wd != time.Saturday && wd != time.Sunday {
+			s.WeekdaysInPeriod++
+		}
+		if _, ok := returned[d.Format("2006-01-02")]; !ok {
+			s.MissingDates = append(s.MissingDates, d.Format("2006-01-02"))
+		}
+	}
+	if len(s.MissingDates) > 0 {
+		log.Warn("the API did not return every date of the period", zap.Strings("missing_dates", s.MissingDates))
+	}
+	// Holidays and leave on a weekday reduce the weekdays; a weekend-flagged weekday or a
+	// working weekend makes the two numbers differ.
+	var off float64
+	for _, d := range s.Days {
+		if d.Weekday != time.Saturday && d.Weekday != time.Sunday {
+			off += 1 - d.Weight
+		}
+	}
+	if expected := float64(s.WeekdaysInPeriod) - off; expected != s.TotalInPeriod {
+		log.Warn("working days differ from the Monday-Friday dates of the period (check is_weekend of the days)",
+			zap.Float64("total_in_period", s.TotalInPeriod), zap.Float64("expected_from_weekdays", expected))
+	}
 }
 
 func logDay(log *zap.Logger, d Day) {

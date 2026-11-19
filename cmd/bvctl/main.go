@@ -3,7 +3,7 @@
 // report of a month. See the README, section "bvctl".
 //
 //	bvctl notify checkin|checkout|failed|report [-chat ID] [-locale vi|en] [-data k=v]
-//	bvctl report [-month MM/YYYY] [-chat ID] [-locale vi|en] [-dry-run] [-verbose] [-skip-empty]
+//	bvctl report [-month MM/YYYY] [-chat ID] [-locale vi|en] [-dry-run] [-verbose] [-skip-empty] [-no-dedupe]
 package main
 
 import (
@@ -31,9 +31,10 @@ const usage = `usage:
   bvctl notify <checkin|checkout|failed|report> [-chat ID] [-locale vi|en] [-data key=value]...
       Send a message of the jobs with sample data. No login to BV.
       Needs COURIER_TARGET (+ COURIER_TOKEN_FILE or COURIER_S2S_TOKEN) and TELEGRAM_CHAT_ID (or -chat).
-  bvctl report [-month MM/YYYY] [-chat ID] [-locale vi|en] [-dry-run] [-verbose] [-skip-empty]
+  bvctl report [-month MM/YYYY] [-chat ID] [-locale vi|en] [-dry-run] [-verbose] [-skip-empty] [-no-dedupe]
       Log in to BV, count the working days of the period that ends in MM/YYYY (default: the
       current period) and send the report. -dry-run prints it instead of sending.
+      Like the job, the same report is sent once a day; -no-dedupe sends it again.
       Needs BV_USERNAME, BV_PASSWORD, BV_OTP_SECRET and, to send, the courier variables.
 `
 
@@ -187,6 +188,7 @@ func runReport(args []string) error {
 	dry := fs.Bool("dry-run", false, "print the report, send nothing")
 	verbose := fs.Bool("verbose", false, "debug log and a per-day table")
 	skipEmpty := fs.Bool("skip-empty", false, "do not send when no day is missing (the job's behaviour)")
+	noDedupe := fs.Bool("no-dedupe", false, "send again even when the same report was already sent today (courier ignores a repeated key for 24h)")
 	if err := fs.Parse(args); err != nil {
 		return usageError{err.Error()}
 	}
@@ -234,7 +236,11 @@ func runReport(args []string) error {
 		Log:    log,
 		Sender: sender,
 	}
-	res, err := r.Run(ctx, period, now, report.Options{DryRun: *dry, SendAlways: !*skipEmpty})
+	dedupe := report.DedupeDaily
+	if *noDedupe {
+		dedupe = report.DedupeNone
+	}
+	res, err := r.Run(ctx, period, now, report.Options{DryRun: *dry, SendAlways: !*skipEmpty, Dedupe: dedupe})
 	if err != nil {
 		return err
 	}

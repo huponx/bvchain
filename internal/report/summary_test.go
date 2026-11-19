@@ -211,3 +211,44 @@ func TestDataAndTable(t *testing.T) {
 		t.Fatalf("table:\n%s", table)
 	}
 }
+
+// The cross-check counts the period without the API flags: a clean month has no warning.
+func TestCrossCheckCleanMonth(t *testing.T) {
+	core, logs := observer.New(zapcore.WarnLevel)
+	s := Summarize(fullMonth(), period, afterPeriod, zap.New(core))
+	if s.PeriodDates != 30 || s.WeekdaysInPeriod != 22 || len(s.MissingDates) != 0 {
+		t.Fatalf("%+v", s)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("unexpected warnings: %v", logs.All())
+	}
+}
+
+// A Saturday that the API does not flag as weekend is counted as a working day: 23 instead of 22.
+// The cross-check names the difference, and a date the API did not return is listed.
+func TestCrossCheckPointsAtAWrongWeekendFlagAndMissingDates(t *testing.T) {
+	core, logs := observer.New(zapcore.WarnLevel)
+	items := fullMonth()
+	find(items, 2026, time.September, 26).IsWeekend = false // Saturday
+	find(items, 2026, time.September, 26).TotalWorkingDay = 1
+	var kept []calendar.Item
+	for _, it := range items {
+		if it.TrackingDate != day(2026, time.October, 5).UnixMilli() { // Monday not returned
+			kept = append(kept, it)
+		}
+	}
+	s := Summarize(kept, period, afterPeriod, zap.New(core))
+
+	if s.TotalInPeriod != 22 { // +1 Saturday, -1 missing Monday
+		t.Fatalf("total = %v", s.TotalInPeriod)
+	}
+	if len(s.MissingDates) != 1 || s.MissingDates[0] != "2026-10-05" {
+		t.Fatalf("missing = %v", s.MissingDates)
+	}
+	if logs.FilterMessage("the API did not return every date of the period").Len() != 1 {
+		t.Fatalf("warnings: %v", logs.All())
+	}
+	if logs.FilterMessage("is_weekend disagrees with the weekday (the API flag is used)").Len() != 1 {
+		t.Fatalf("warnings: %v", logs.All())
+	}
+}
