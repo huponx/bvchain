@@ -9,8 +9,6 @@ bv-job:
       env:
         - name: BV_USERNAME
           value: hung.pham
-        - name: DELAY
-          value: 3m
         - name: COURIER_TARGET
           value: courier.application.svc.cluster.local:9090
         - name: COURIER_TOKEN_FILE

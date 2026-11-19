@@ -8,7 +8,6 @@ import (
 	"github.com/huponx/bvchain/internal/appconfig"
 	"github.com/huponx/bvchain/internal/auth"
 	"github.com/huponx/bvchain/internal/calendar"
-	"github.com/huponx/bvchain/internal/delay"
 	"github.com/huponx/bvchain/internal/notify"
 	"go.uber.org/zap"
 )
@@ -101,9 +100,6 @@ func NewJob(cfg appconfig.Report, log *zap.Logger, sender notify.Sender) *Job {
 // Run executes the job.
 func (j *Job) Run(ctx context.Context) error {
 	j.reporter.Log.Info("starting bvreport job")
-	if err := delay.Random(ctx, j.cfg.Delay, j.reporter.Log); err != nil {
-		return err
-	}
 	now := time.Now()
 	_, err := j.reporter.Run(ctx, calendar.PeriodAt(now), now, Options{SendAlways: j.cfg.AlwaysSend})
 	return err
