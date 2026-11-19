@@ -51,6 +51,9 @@ type Report struct {
 	Courier Courier
 	// AlwaysSend sends the report even when no day is missing.
 	AlwaysSend bool `env:"REPORT_ALWAYS_SEND" envDefault:"false"`
+	// Dedupe decides how often the same report is sent: daily (once per day, a retried or
+	// repeated run is ignored by courier), hourly (once per hour) or none (every run sends).
+	Dedupe string `env:"REPORT_DEDUPE" envDefault:"daily"`
 }
 
 // Ctl is the configuration of bvctl. Which of BV and Courier is needed depends on the command,
@@ -98,7 +101,14 @@ func (c Courier) Validate() error {
 func (c Chain) Validate() error { return validate(c.BV, c.Courier) }
 
 // Validate checks the BV account and courier settings.
-func (c Report) Validate() error { return validate(c.BV, c.Courier) }
+func (c Report) Validate() error {
+	switch c.Dedupe {
+	case "daily", "hourly", "none":
+	default:
+		return fmt.Errorf("REPORT_DEDUPE must be daily, hourly or none, got %q", c.Dedupe)
+	}
+	return validate(c.BV, c.Courier)
+}
 
 func validate(b BV, c Courier) error {
 	if err := b.Validate(); err != nil {

@@ -43,6 +43,7 @@ All settings are environment variables (`.env.example` lists them; `.env` is git
 | `DELAY` | `0s` | bvchain | random sleep up to this value before the run, so the check-in time varies |
 | `NOTIFICATION_SUCCESS_ENABLED` | `false` | bvchain | message after each check-in/check-out |
 | `REPORT_ALWAYS_SEND` | `false` | bvreport | send even when no day is missing |
+| `REPORT_DEDUPE` | `daily` | bvreport | how often the same report is sent: `daily` (once per period and day: a retried or repeated run is ignored by courier for 24h), `hourly` (once per hour, use it with a schedule that runs several times a day) or `none` (every run sends) |
 | `LOG_LEVEL`, `LOG_ENCODING`, `SERVICE_NAME`, `ENV` | `info`, `console`, binary name, `dev` | all | `LOG_ENCODING=json` in the cluster, `LOG_LEVEL=debug` logs every calendar day |
 
 ## Working days of the report
@@ -113,6 +114,7 @@ bvctl report -month 10/2025 -dry-run -verbose   # print the report and the per-d
 bvctl report -month 10/2025                     # send the report to TELEGRAM_CHAT_ID
 bvctl report                                    # the current period
 bvctl report -month 10/2025 -skip-empty         # like the job: send only when a day is missing
+bvctl report -month 10/2025 -no-dedupe          # send again, even if the same report was already sent today
 ```
 
 | Flag | Default | |
@@ -121,6 +123,7 @@ bvctl report -month 10/2025 -skip-empty         # like the job: send only when a
 | `-chat`, `-locale` | as above | |
 | `-dry-run` | off | print the report, send nothing (no courier needed) |
 | `-verbose` | off | debug log of every calendar day and the per-day table |
+| `-no-dedupe` | off | send again even when the same report was already sent today (the report has an idempotency key per period and day, like the job with `REPORT_DEDUPE=daily`; courier ignores a repeated key for 24h) |
 | `-skip-empty` | off | do not send when no day is missing (the job's behaviour; `bvctl` sends by default) |
 
 Reading the `-verbose` output: the table has one row per date of the period (`class` is `working`, `weekend`, `holiday` or `leave`; `weight` is the working part of the day, `credit` the part covered by check-in/check-out, `twd` the `total_working_day` of the API, `future` days are not counted in `total_to_today`). After the table come the template values and `legacy count (old report)`, the number the previous implementation would have reported. The `WARN` lines above it name every duplicate, out-of-period date and weekday mismatch.

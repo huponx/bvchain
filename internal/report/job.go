@@ -25,6 +25,29 @@ type Options struct {
 	DryRun bool
 	// SendAlways sends the report even when no day is missing.
 	SendAlways bool
+	// Dedupe is DedupeDaily (default when empty), DedupeHourly or DedupeNone.
+	Dedupe string
+}
+
+// Idempotency modes of the report message (courier keeps a key for 24 hours).
+const (
+	DedupeDaily  = "daily"  // one report per period and day
+	DedupeHourly = "hourly" // one report per period and hour
+	DedupeNone   = "none"   // no key: every run sends
+)
+
+// idempotencyKey returns the courier key of the report ("" = no key).
+func idempotencyKey(mode string, period calendar.DateRange, now time.Time) string {
+	local := now.In(calendar.VietnamLoc)
+	base := fmt.Sprintf("bvreport-%s", calendar.DayKey(period.FromDate))
+	switch mode {
+	case DedupeNone:
+		return ""
+	case DedupeHourly:
+		return fmt.Sprintf("%s-%s", base, local.Format("2006-01-02T15"))
+	default:
+		return fmt.Sprintf("%s-%s", base, local.Format("2006-01-02"))
+	}
 }
 
 // Result is the outcome of a run.
@@ -66,7 +89,7 @@ func (r *Reporter) Run(ctx context.Context, period calendar.DateRange, now time.
 	case res.Summary.MissingDays <= 0 && !opts.SendAlways:
 		r.Log.Info("no missing days, skipping report")
 	default:
-		key := fmt.Sprintf("bvreport-%s-%s", calendar.DayKey(period.FromDate), now.In(calendar.VietnamLoc).Format("2006-01-02"))
+		key := idempotencyKey(opts.Dedupe, period, now)
 		if err := r.Sender.Send(ctx, notify.TemplateReport, key, res.Data); err != nil {
 			return res, fmt.Errorf("send report: %w", err)
 		}
@@ -101,6 +124,6 @@ func NewJob(cfg appconfig.Report, log *zap.Logger, sender notify.Sender) *Job {
 func (j *Job) Run(ctx context.Context) error {
 	j.reporter.Log.Info("starting bvreport job")
 	now := time.Now()
-	_, err := j.reporter.Run(ctx, calendar.PeriodAt(now), now, Options{SendAlways: j.cfg.AlwaysSend})
+	_, err := j.reporter.Run(ctx, calendar.PeriodAt(now), now, Options{SendAlways: j.cfg.AlwaysSend, Dedupe: j.cfg.Dedupe})
 	return err
 }
