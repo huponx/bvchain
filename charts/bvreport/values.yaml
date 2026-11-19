@@ -27,8 +27,6 @@ bv-job:
           value: json
         - name: SERVICE_NAME
           value: bvreport
-        - name: DELAY
-          value: 3m
         - name: COURIER_TARGET
           value: courier.application.svc.cluster.local:9090
         - name: COURIER_TOKEN_FILE

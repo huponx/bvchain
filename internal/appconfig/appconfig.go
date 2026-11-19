@@ -49,7 +49,6 @@ type Report struct {
 	config.Log
 	BV      BV
 	Courier Courier
-	Delay   time.Duration `env:"DELAY" envDefault:"0s"`
 	// AlwaysSend sends the report even when no day is missing.
 	AlwaysSend bool `env:"REPORT_ALWAYS_SEND" envDefault:"false"`
 }
