@@ -3,8 +3,8 @@ module github.com/huponx/bvchain
 go 1.26.10
 
 require (
-	github.com/huponx/gocommon v0.4.3
-	github.com/huponx/protogen/go v0.1.13
+	github.com/huponx/gocommon v0.5.1
+	github.com/huponx/protogen/go v0.3.0
 	go.uber.org/zap v1.28.0
 	google.golang.org/grpc v1.85.0
 )
