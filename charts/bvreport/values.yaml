@@ -31,11 +31,25 @@ bv-job:
           value: courier.application.svc.cluster.local:9090
         - name: COURIER_TOKEN_FILE
           value: /var/run/secrets/courier/token
+        - name: GRPC_TLS_CA_FILE
+          value: /var/run/tls/ca.crt
       volumeMounts:
         - name: courier-token
           mountPath: /var/run/secrets/courier
           readOnly: true
+        - name: grpc-tls
+          mountPath: /var/run/tls
+          readOnly: true
     volumes:
+      # In-cluster gRPC TLS (certificate of cert-manager, see the TLS section of courier/docs/setup-notification.md).
+      # Optional: the pod starts without it, nothing reads it until GRPC_TLS_* / *_INSECURE=false are set.
+      - name: grpc-tls
+        secret:
+          secretName: courier-grpc-tls
+          optional: true
+          items:
+            - key: ca.crt
+              path: ca.crt
       - name: courier-token
         projected:
           sources:

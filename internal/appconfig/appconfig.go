@@ -21,8 +21,9 @@ type Courier struct {
 	// Target is host:port of courier (gRPC).
 	Target  string        `env:"COURIER_TARGET"`
 	Timeout time.Duration `env:"COURIER_TIMEOUT" envDefault:"10s"`
-	// Insecure is plaintext gRPC, the in-cluster default (courier has no TLS of its own).
+	// Insecure is plaintext gRPC, the default. Set false once courier serves TLS; the CA to trust is GRPC_TLS_CA_FILE.
 	Insecure bool `env:"COURIER_INSECURE" envDefault:"true"`
+	config.GRPCTLS
 	// TokenFile is the projected ServiceAccount token (audience courier); a local courier does not authenticate services.
 	TokenFile string `env:"COURIER_TOKEN_FILE"`
 	// UserID is the user of identity who receives the messages in the Telegram chat they linked in the portal
