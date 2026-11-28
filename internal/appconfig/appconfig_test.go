@@ -39,6 +39,10 @@ func TestValidateListsWhatIsMissing(t *testing.T) {
 	if err := (Courier{Target: "x:1"}).Validate(); err == nil || err.Error() != "missing: TELEGRAM_CHAT_ID" {
 		t.Fatalf("err = %v", err)
 	}
+	// a linked user instead of a fixed chat
+	if err := (Courier{Target: "x:1", UserID: "u"}).Validate(); err != nil {
+		t.Fatalf("err = %v", err)
+	}
 }
 
 func TestReportDedupe(t *testing.T) {
