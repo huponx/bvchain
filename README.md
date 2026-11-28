@@ -35,7 +35,7 @@ All settings are environment variables (`.env.example` lists them; `.env` is git
 | `BV_USERNAME`, `BV_PASSWORD`, `BV_OTP_SECRET` | | all | BV account; `BV_OTP_SECRET` is the base32 TOTP secret |
 | `COURIER_TARGET` | | all | courier gRPC `host:port` |
 | `COURIER_TIMEOUT` | `10s` | all | per call |
-| `COURIER_INSECURE` | `true` | all | plaintext gRPC (courier has no TLS of its own inside the cluster) |
+| `COURIER_INSECURE` | `true` | all | plaintext gRPC; set `false` once courier serves TLS (CA: `GRPC_TLS_CA_FILE`, see courier `docs/setup-notification.md` section 14) |
 | `COURIER_TOKEN_FILE` | | all | projected ServiceAccount token (audience `courier`); re-read when it rotates. |
 | `BVCHAIN_NOTIFY_USER_ID` | | all | user of identity who gets the messages in the Telegram chat they linked in the portal (Settings, Notifications). Wins over `TELEGRAM_CHAT_ID`; courier then applies that user's choices (the attendance category, quiet hours). A user who has not linked Telegram is logged as skipped, the job does not fail |
 | `TELEGRAM_CHAT_ID` | | all | a fixed chat (an operations group) that receives the messages when no user is set (one of the two is required) |
