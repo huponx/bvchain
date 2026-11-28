@@ -30,7 +30,7 @@ import (
 const usage = `usage:
   bvctl notify <checkin|checkout|failed|report> [-chat ID] [-locale vi|en] [-data key=value]...
       Send a message of the jobs with sample data. No login to BV.
-      Needs COURIER_TARGET (+ COURIER_TOKEN_FILE or COURIER_S2S_TOKEN) and TELEGRAM_CHAT_ID (or -chat).
+      Needs COURIER_TARGET (+ COURIER_TOKEN_FILE in a cluster) and TELEGRAM_CHAT_ID (or -chat).
   bvctl report [-month MM/YYYY] [-chat ID] [-locale vi|en] [-dry-run] [-verbose] [-skip-empty] [-no-dedupe]
       Log in to BV, count the working days of the period that ends in MM/YYYY (default: the
       current period) and send the report. -dry-run prints it instead of sending.

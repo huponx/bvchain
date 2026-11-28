@@ -11,6 +11,7 @@ import (
 
 	"github.com/huponx/bvchain/internal/appconfig"
 	"github.com/huponx/gocommon/grpcclient"
+	"github.com/huponx/gocommon/notifyclient"
 	courierv1 "github.com/huponx/protogen/go/courier/v1"
 	"go.uber.org/zap"
 )
@@ -29,10 +30,24 @@ type Sender interface {
 	Send(ctx context.Context, templateID, idempotencyKey string, data map[string]string) error
 }
 
+// eventTypes maps the template ids to the event types of the courier catalog
+// (courier/internal/catalog/event_types.yaml).
+var eventTypes = map[string]string{
+	TemplateCheckIn:  "bvchain.checkin",
+	TemplateCheckOut: "bvchain.checkout",
+	TemplateFailed:   "bvchain.failed",
+	TemplateReport:   "bvchain.working_report",
+}
+
 // Courier is a Sender backed by the courier gRPC API.
 type Courier struct {
 	client courierv1.CourierServiceClient
+	// events sends the events of the catalog (gocommon/notifyclient); client is kept for the older SendNotification.
+	events *notifyclient.Client
 	chatID string
+	// userID is the user of identity who gets the messages in the Telegram chat they linked in the portal
+	// (Settings, Notifications); it wins over chatID.
+	userID string
 	locale string
 	log    *zap.Logger
 }
@@ -42,7 +57,14 @@ func New(client courierv1.CourierServiceClient, chatID, locale string) *Courier 
 	if locale == "" {
 		locale = "vi"
 	}
-	return &Courier{client: client, chatID: chatID, locale: locale}
+	return &Courier{client: client, events: notifyclient.New(client), chatID: chatID, locale: locale}
+}
+
+// ForUser sends to the Telegram chat the user linked (courier looks it up, and honours the choices of the user:
+// the bvchain category, quiet hours). An empty id keeps the fixed chat.
+func (c *Courier) ForUser(userID string) *Courier {
+	c.userID = userID
+	return c
 }
 
 // Dial connects to courier (the ServiceAccount token file is re-read when the kubelet rotates
@@ -58,20 +80,47 @@ func Dial(ctx context.Context, cfg appconfig.Courier, log *zap.Logger) (*Courier
 	}
 	if cfg.TokenFile != "" {
 		opts = append(opts, grpcclient.WithBearerTokenFile(cfg.TokenFile))
-	} else if cfg.S2SToken != "" {
-		opts = append(opts, grpcclient.WithBearerToken(cfg.S2SToken))
 	}
 	conn, err := grpcclient.Dial(ctx, cfg.Target, opts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial courier: %w", err)
 	}
-	c := New(courierv1.NewCourierServiceClient(conn), cfg.ChatID, cfg.Locale)
+	c := New(courierv1.NewCourierServiceClient(conn), cfg.ChatID, cfg.Locale).ForUser(cfg.UserID)
 	c.log = log
 	return c, conn.Close, nil
 }
 
-// Send implements Sender.
+// Send implements Sender. A known template goes through Notify (the catalog validates its data, and a linked user
+// is reached by id); any other template id (bvctl send with a free template) keeps the older SendNotification to the
+// fixed chat.
 func (c *Courier) Send(ctx context.Context, templateID, key string, data map[string]string) error {
+	eventType, known := eventTypes[templateID]
+	if !known {
+		return c.sendTemplate(ctx, templateID, key, data)
+	}
+	req := notifyclient.Request{IdempotencyKey: key, EventType: eventType, Locale: c.locale, Data: data}
+	if c.userID != "" {
+		req.UserIDs = []string{c.userID}
+	} else {
+		req.Recipients = []notifyclient.Recipient{{Channel: courierv1.Channel_CHANNEL_TELEGRAM, Address: c.chatID}}
+	}
+	res, err := c.events.Notify(ctx, req)
+	if err != nil {
+		return err
+	}
+	if c.log != nil {
+		c.log.Info("notification accepted by courier", zap.String("event_type", eventType),
+			zap.String("event_id", res.EventID), zap.Int("queued", res.Queued), zap.Strings("skipped_users", res.SkippedUserIDs))
+	}
+	// the user has not linked Telegram (or turned the category off): say so in the log, it is not an error of the job
+	if len(res.SkippedUserIDs) > 0 && c.log != nil {
+		c.log.Warn("courier skipped the user: Telegram is not linked or the category is off", zap.String("user_id", c.userID))
+	}
+	return nil
+}
+
+// sendTemplate is the older call by template id and raw chat.
+func (c *Courier) sendTemplate(ctx context.Context, templateID, key string, data map[string]string) error {
 	resp, err := c.client.SendNotification(ctx, &courierv1.SendNotificationRequest{
 		IdempotencyKey: key,
 		Locale:         c.locale,

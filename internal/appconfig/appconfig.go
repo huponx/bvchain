@@ -23,11 +23,12 @@ type Courier struct {
 	Timeout time.Duration `env:"COURIER_TIMEOUT" envDefault:"10s"`
 	// Insecure is plaintext gRPC, the in-cluster default (courier has no TLS of its own).
 	Insecure bool `env:"COURIER_INSECURE" envDefault:"true"`
-	// TokenFile is the projected ServiceAccount token (audience courier); it wins over S2SToken.
+	// TokenFile is the projected ServiceAccount token (audience courier); a local courier does not authenticate services.
 	TokenFile string `env:"COURIER_TOKEN_FILE"`
-	// S2SToken is a static Bearer token for a local courier started with COURIER_S2S_TOKEN.
-	S2SToken string `env:"COURIER_S2S_TOKEN"`
-	// ChatID is the Telegram chat that receives the messages.
+	// UserID is the user of identity who receives the messages in the Telegram chat they linked in the portal
+	// (Settings, Notifications). It wins over ChatID: courier then applies the choices of that user.
+	UserID string `env:"BVCHAIN_NOTIFY_USER_ID"`
+	// ChatID is a fixed Telegram chat (an operations group), used when UserID is empty.
 	ChatID string `env:"TELEGRAM_CHAT_ID"`
 	// Locale selects the template language (vi, en).
 	Locale string `env:"NOTIFY_LOCALE" envDefault:"vi"`
@@ -82,13 +83,13 @@ func (b BV) Validate() error {
 	return nil
 }
 
-// Validate checks that courier and the chat are set.
+// Validate checks that courier and a recipient (BVCHAIN_NOTIFY_USER_ID or TELEGRAM_CHAT_ID) are set.
 func (c Courier) Validate() error {
 	var missing []string
 	if strings.TrimSpace(c.Target) == "" {
 		missing = append(missing, "COURIER_TARGET")
 	}
-	if strings.TrimSpace(c.ChatID) == "" {
+	if strings.TrimSpace(c.ChatID) == "" && strings.TrimSpace(c.UserID) == "" {
 		missing = append(missing, "TELEGRAM_CHAT_ID")
 	}
 	if len(missing) > 0 {
