@@ -78,6 +78,9 @@ func Dial(ctx context.Context, cfg appconfig.Courier, log *zap.Logger) (*Courier
 		grpcclient.WithTimeout(cfg.Timeout),
 		grpcclient.WithInsecure(cfg.Insecure),
 	}
+	if !cfg.Insecure {
+		opts = append(opts, grpcclient.WithTLSFiles(cfg.ClientTLS()))
+	}
 	if cfg.TokenFile != "" {
 		opts = append(opts, grpcclient.WithBearerTokenFile(cfg.TokenFile))
 	}
