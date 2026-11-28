@@ -36,9 +36,9 @@ All settings are environment variables (`.env.example` lists them; `.env` is git
 | `COURIER_TARGET` | | all | courier gRPC `host:port` |
 | `COURIER_TIMEOUT` | `10s` | all | per call |
 | `COURIER_INSECURE` | `true` | all | plaintext gRPC (courier has no TLS of its own inside the cluster) |
-| `COURIER_TOKEN_FILE` | | all | projected ServiceAccount token (audience `courier`); re-read when it rotates. Wins over `COURIER_S2S_TOKEN` |
-| `COURIER_S2S_TOKEN` | | local | static Bearer token for a local courier started with `ENV=local` |
-| `TELEGRAM_CHAT_ID` | | all | chat that receives the messages |
+| `COURIER_TOKEN_FILE` | | all | projected ServiceAccount token (audience `courier`); re-read when it rotates. |
+| `BVCHAIN_NOTIFY_USER_ID` | | all | user of identity who gets the messages in the Telegram chat they linked in the portal (Settings, Notifications). Wins over `TELEGRAM_CHAT_ID`; courier then applies that user's choices (the attendance category, quiet hours). A user who has not linked Telegram is logged as skipped, the job does not fail |
+| `TELEGRAM_CHAT_ID` | | all | a fixed chat (an operations group) that receives the messages when no user is set (one of the two is required) |
 | `NOTIFY_LOCALE` | `vi` | all | template language, `vi` or `en` |
 | `DELAY` | `0s` | bvchain | random sleep up to this value before the run, so the check-in time varies |
 | `NOTIFICATION_SUCCESS_ENABLED` | `false` | bvchain | message after each check-in/check-out |
@@ -82,7 +82,7 @@ export COURIER_TOKEN_FILE=/tmp/courier-token
 export TELEGRAM_CHAT_ID=<chat id>
 ```
 
-Against a local courier (`make run-courier` in the courier repository with `ENV=local`) no token is needed: leave `COURIER_TOKEN_FILE` empty, or set `COURIER_S2S_TOKEN` when the local courier was started with one.
+Against a local courier (`make run-courier` in the courier repository with `ENV=local`) no token is needed: leave `COURIER_TOKEN_FILE` empty (a local courier does not authenticate services).
 
 ### Send a message with sample data
 
